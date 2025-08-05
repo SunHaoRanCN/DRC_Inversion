@@ -10,12 +10,7 @@ class SNRScheduler:
                  total_epochs: int,
                  min_snr: float = None,
                  schedule_type: str = 'linear'):
-        """
-        :param snr_start: 初始SNR值（dB）
-        :param snr_end: 最终SNR值（dB）
-        :param total_epochs: 总训练轮次
-        :param schedule_type: 调度类型（linear/exponential）
-        """
+
         self.snr_start = snr_start
         self.snr_step = snr_step
         self.step_interval = step_interval
@@ -26,7 +21,6 @@ class SNRScheduler:
         self.warmup_epochs = 1
 
     def get_current_snr(self) -> float:
-        """根据当前epoch计算SNR值"""
         if self.current_epoch < self.warmup_epochs:
             return float('inf')
 
@@ -49,12 +43,10 @@ class SNRScheduler:
 def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # 多GPU时
-    torch.backends.cudnn.deterministic = True  # 确保卷积算法确定性
-    torch.backends.cudnn.benchmark = False  # 关闭自动优化（固定计算流程）
-    # NumPy
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
-    # Python random
     random.seed(seed)
 
 
@@ -65,10 +57,8 @@ class BalancedBatchSampler(torch.utils.data.Sampler):
         self.num_batches = len(dataset) // batch_size
 
     def __iter__(self):
-        # 生成全局随机排列
         indices = torch.randperm(len(self.dataset))
         for i in range(self.num_batches):
-            # 确保每个batch包含等量的噪声样本
             start = i * self.batch_size
             end = start + self.batch_size
             yield indices[start:end]

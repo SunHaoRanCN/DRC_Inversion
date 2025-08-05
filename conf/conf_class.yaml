@@ -1,0 +1,43 @@
+defaults:
+  - dset: MedleyDB
+  - feature: STFT
+
+MedleyDB:
+  sample_rate: 44100
+
+MUSDB18-HQ:
+  sample_rate: 44100
+
+DAFX:
+  sample_rate: 36000
+
+LibriSpeech:
+  sample_rate: 16000
+
+duration: 5
+
+n_class: 31
+
+target_shape:
+  f_dim: 64
+  t_dim: 431
+
+lr: 1e-4
+lr_gamma: 0.98
+batch_size: 8
+
+early_stop: False
+max_epoch: 200
+patience: 30
+
+AST:
+  MLPs: [1024, 512, 256, 64, 32]
+  activation: PRelu
+  norm: 'Layer'
+  imagenet_pretrain: True
+  audioset_pretrain: False
+
+compressors: '30profiles.pt'
+
+eval:
+  model_save: pretrained_model

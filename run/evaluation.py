@@ -49,12 +49,12 @@ class classifier_eval:
 
         self.compressors = pickle.load(open(self.config.compressors, 'rb'))
 
-        self.test_dataset = get_2D_dataset(
-            self.config.test_folder,
+        self.eval_dataset = get_2D_dataset(
+            self.config.eval_folder,
             target_shape=self.config.target_shape
         )
-        self.test_loader = DataLoader(
-            self.test_dataset,
+        self.eval_loader = DataLoader(
+            self.eval_dataset,
             batch_size=self.config.batch_size,
             shuffle=False
         )
@@ -67,7 +67,7 @@ class classifier_eval:
         count = 0
 
         with torch.no_grad():
-            for real_signals, target_signals, inputs, labels, audio_names in self.test_loader:
+            for real_signals, target_signals, inputs, labels, audio_names in self.eval_loader:
                 inputs = inputs.to(torch.float32)
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
 
@@ -169,11 +169,11 @@ class regressor_eval:
         compressors = pickle.load(open(self.config.compressors, 'rb'))
 
         self.eval_dataset = get_dataset(
-            self.config.test_folder,
+            self.config.eval_folder,
             compressors
         )
         self.eval_loader = DataLoader(
-            self.test_dataset,
+            self.eval_dataset,
             batch_size=self.config.batch_size,
             shuffle=False
         )
@@ -191,7 +191,6 @@ class regressor_eval:
 
     def evaluation(self):
         torch.cuda.synchronize()
-        count = 0
 
         estimated_p = []
         real_labels = []
@@ -212,7 +211,6 @@ class regressor_eval:
                 estimated_p.append(q_hat)
                 real_labels.append(labels)
 
-                estimated_signals = []
                 for i in range(inputs.size(0)):
                     y = inputs[i]
                     x_real = targets[i]
@@ -233,12 +231,19 @@ class regressor_eval:
                         y = y.squeeze().cpu().numpy()
                         parameters = self.find_real_params(theta.cpu().numpy())
                         parameters = parameters.flatten()
-                        estimated_signal = decompressor(y, 44100, parameters[0], parameters[1], parameters[2], parameters[3], parameters[4], parameters[5], 2)
+                        estimated_signal = decompressor(y,
+                                                        self.config.sample_rate,
+                                                        parameters[0],
+                                                        parameters[1],
+                                                        parameters[2],
+                                                        parameters[3],
+                                                        parameters[4],
+                                                        parameters[5],
+                                                        2)
 
                     sf.write(self.config.output_folder + "/" + audio_name, estimated_signal, self.config.sample_rate)
-                    count += 1
 
                     torch.cuda.empty_cache()
 
         df = pd.DataFrame(q_tab)
-        df.to_excel("../../results/MedleyDB/q_noised_large.xlsx", index=False)
+        df.to_excel("/results/parameters.xlsx", index=False)

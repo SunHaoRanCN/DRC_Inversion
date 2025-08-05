@@ -32,7 +32,7 @@ def normSignal_np(x):
     return x
 
 class classifier_train:
-    def __int__(self, config):
+    def __init__(self, config):
         self.config = config
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
@@ -41,18 +41,18 @@ class classifier_train:
         set_seed(self.config.seed)
 
         self.model = ASTModel(
-            label_dim=self.config.num_classes,
-            input_tdim=self.config.target_shape[1],
-            input_fdim=self.config.target_shape[0],
-            imagenet_pretrain=self.config.imagenet_pretrain,
-            audioset_pretrain=self.config.audioset_pretrain
+            label_dim=self.config.n_class,
+            input_tdim=self.config.t_dim,
+            input_fdim=self.config.f_dim,
+            imagenet_pretrain=self.config.AST.imagenet_pretrain,
+            audioset_pretrain=self.config.AST.audioset_pretrain,
         )
 
         if torch.cuda.device_count() > 1:
             self.model = nn.DataParallel(self.model)
         self.model = self.model.to(self.device)
 
-        self.compressors = pickle.load(open(self.config.compressor, 'rb'))
+        self.compressors = pickle.load(open(self.config.compressors, 'rb'))
 
         self.compressors_torch = {
             key: {param: torch.tensor(value).to(self.device)
@@ -328,7 +328,7 @@ class regressor_train:
 
                 if self.config.loss_type.lower() == 'params':
                     loss = self.criterion(norm_q, q_hat)
-                else:  # mel损失
+                else:
                     loss = self.criterion(q_hat, norm_q, target, inputs, self.config.AFX)
 
                 val_loss += loss.item()

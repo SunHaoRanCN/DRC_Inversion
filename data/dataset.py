@@ -4,7 +4,7 @@ from pathlib import Path
 base_dir = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(base_dir))
 
-from src.models.DECOMP import compressor
+from models.DECOMP import compressor
 import os
 import soundfile as sf
 import numpy as np
@@ -217,7 +217,7 @@ def generate_multi_dataset(
             break
 
         if file_name.endswith('.wav'):
-            count += 1
+            # count += 1
             file_path = os.path.join(source_folder, file_name)
             audio_data, fs = sf.read(file_path)
             info = sf.info(file_path)
@@ -238,8 +238,9 @@ def generate_multi_dataset(
             # Calculate the number of segments
             num_segments = int(len(audio_data) // (fs * duration))
 
-            segment_count = 0
+            # segment_count = 0
             for i in range(num_segments):
+
                 start_time = int(i * fs * duration)
                 end_time = int((i + 1) * fs * duration)
                 segment = audio_data[start_time:end_time]
@@ -257,13 +258,11 @@ def generate_multi_dataset(
                 segment = segment - np.mean(segment)
                 segment = segment / np.max(np.abs(segment))
 
-                segment_count += 1
-                output_path = os.path.join(all_folder, f"{count}_{segment_count}_0.wav")
+                # segment_count += 1
+                count += 1
+                output_path = os.path.join(all_folder, f"{count}_0.wav")
                 sf.write(output_path, segment, fs)
-
                 total_num += 1
-                if total_num >= target_number:
-                    break
 
                 # Apply compressors
                 for label, parameters in compressors.items():
@@ -279,37 +278,23 @@ def generate_multi_dataset(
                         parameters.get('param6'),
                         parameters.get('param7')
                     )
-                    output_path = os.path.join(all_folder, f"{count}_{segment_count}_{label}.wav")
+                    output_path = os.path.join(all_folder, f"{count}_{label}.wav")
                     sf.write(output_path, y, fs)
 
                     total_num += 1
-                    if total_num >= target_number:
-                        break
 
                 # Process noised segment if data augmentation is enabled
                 if data_augmentation:
                     noised_segment = noised_audio[start_time:end_time]
 
-                    # Skip silent segments
-                    if np.all(noised_segment == 0):
-                        continue
-
-                    # Skip low energy segments
-                    E = 10 * np.log10(np.sum(noised_segment ** 2))
-                    if E < -30:
-                        continue
-
                     # Normalize noised segment
                     noised_segment = noised_segment - np.mean(noised_segment)
                     noised_segment = noised_segment / np.max(np.abs(noised_segment))
 
-                    segment_count += 1
-                    output_path = os.path.join(all_folder, f"n_{count}_{segment_count}_0.wav")
+                    # segment_count += 1
+                    output_path = os.path.join(all_folder, f"{count}_n_0.wav")
                     sf.write(output_path, noised_segment, fs)
-
                     total_num += 1
-                    if total_num >= target_number:
-                        break
 
                     # Apply compressors to noised segment
                     for label, parameters in compressors.items():
@@ -325,7 +310,7 @@ def generate_multi_dataset(
                             parameters.get('param6'),
                             parameters.get('param7')
                         )
-                        output_path = os.path.join(all_folder, f"n_{count}_{segment_count}_{label}.wav")
+                        output_path = os.path.join(all_folder, f"{count}_n_{label}.wav")
                         sf.write(output_path, y, fs)
 
                         total_num += 1
@@ -373,30 +358,30 @@ def generate_multi_dataset(
 
     train_class_count = count_files_in_classes(train_folder)
     test_class_count = count_files_in_classes(test_folder)
-    
+
     return train_class_count, test_class_count
 
 
+source_folder = "/Volumes/hsun_exFAT/Datasets/MedleyDB/raw_musics_30"
+root_path = "/Volumes/hsun_exFAT/Datasets/MedleyDB/30profiles"
 
-source_folder = "/home/hsun/Datasets/MedleyDB/raw_musics_30/"
-root_path = "/home/hsun/Datasets/MedleyDB/30profiles/"
-
-with open('/home/hsun/Projects/AQUARIUS/DRC_inv/src/30profiles.pkl', 'rb') as file:
+with open('/Users/sunhaoran/Projects/TASLP/30profiles.pkl', 'rb') as file:
     compressors = pickle.load(file)
 duration = 5
-# SNR = np.arange(20, 65, 5)
-SNR = np.array([20])
+SNR = np.arange(20, 70, 5)
+# SNR = np.array([20])
 for snr in SNR:
-    root_folder = os.path.join(root_path, str(snr)+"dB")
+    root_folder = os.path.join(root_path, str(snr) + "dB")
     os.makedirs(root_folder, exist_ok=True)
+    print(r"Generating dataset with SNR {snr} dB.")
     train_class_count, test_class_count = generate_multi_dataset(source_folder,
-                                                           root_folder,
-                                                           compressors,
-                                                           target_number=99999,
-                                                           duration=5,
-                                                           data_augmentation=True,
-                                                           snr=snr,
-                                                           split_ratio=0.8
-                                                           )
+                                                                 root_folder,
+                                                                 compressors,
+                                                                 target_number=int(35867*2),
+                                                                 duration=5,
+                                                                 data_augmentation=True,
+                                                                 snr=snr,
+                                                                 split_ratio=0.8
+                                                                 )
     print_class_distribution(train_class_count, "train folder")
     print_class_distribution(test_class_count, "test folder")
