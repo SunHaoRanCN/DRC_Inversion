@@ -1,0 +1,8 @@
+source_folder: "/home/hsun/Datasets/MedleyDB/raw_musics_30/"
+root_folder: "/home/hsun/Datasets/MedleyDB/30profiles/"
+
+duration: 5
+compressors: "30profiles.pt"
+snr_min: 20
+snr_max: 65
+step: 5

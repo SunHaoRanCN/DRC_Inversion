@@ -1,18 +1,4 @@
-defaults:
-  - dset: MedleyDB
-  - feature: STFT
-
-MedleyDB:
-  sample_rate: 44100
-
-MUSDB18-HQ:
-  sample_rate: 44100
-
-DAFX:
-  sample_rate: 36000
-
-LibriSpeech:
-  sample_rate: 16000
+sample_rate: 16000
 
 duration: 5
 
@@ -28,6 +14,7 @@ batch_size: 8
 
 early_stop: False
 max_epoch: 200
+min_epoch: 100
 patience: 30
 
 AST:
@@ -39,5 +26,4 @@ AST:
 
 compressors: '30profiles.pt'
 
-eval:
-  model_save: pretrained_model
+model_save: "pretrained_model/pretrained_AST.pt"

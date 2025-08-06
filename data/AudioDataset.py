@@ -22,9 +22,9 @@ def add_noise_with_snr_numpy(audio: np.ndarray,
 
 
 class get_2D_dataset(Dataset):
-    def __init__(self, root_dir, target_shape, resample=False, target_fs=16000, transform=None):
+    def __init__(self, root_dir, t_dim, f_dim, resample=False, target_fs=16000, transform=None):
         self.audio_folder = root_dir
-        self.target_shape = target_shape
+        self.target_shape = (t_dim, f_dim)
         self.resample = resample
         self.target_fs = target_fs
         self.transform = transform

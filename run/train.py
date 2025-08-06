@@ -1,3 +1,4 @@
+import os.path
 import sys
 from pathlib import Path
 import torch
@@ -32,8 +33,9 @@ def normSignal_np(x):
     return x
 
 class classifier_train:
-    def __init__(self, config):
+    def __init__(self, config, input_path):
         self.config = config
+        self.input_path = input_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
 
@@ -42,8 +44,8 @@ class classifier_train:
 
         self.model = ASTModel(
             label_dim=self.config.n_class,
-            input_tdim=self.config.t_dim,
-            input_fdim=self.config.f_dim,
+            input_tdim=self.config.target_shape.t_dim,
+            input_fdim=self.config.target_shape.f_dim,
             imagenet_pretrain=self.config.AST.imagenet_pretrain,
             audioset_pretrain=self.config.AST.audioset_pretrain,
         )
@@ -72,13 +74,17 @@ class classifier_train:
         self.val_accuracies = []
 
     def _create_dataloaders(self):
+        train_folder_path = os.path.join(self.input_path, "train")
+        test_folder_path = os.path.join(self.input_path, "test")
         train_dataset = get_2D_dataset(
-            self.config.train_folder,
-            target_shape=self.config.target_shape
+            train_folder_path,
+            t_dim = self.config.target_shape.t_dim,
+            f_dim = self.config.target_shape.f_dim
         )
         test_dataset = get_2D_dataset(
-            self.config.test_folder,
-            target_shape=self.config.target_shape
+            test_folder_path,
+            t_dim=self.config.target_shape.t_dim,
+            f_dim=self.config.target_shape.f_dim
         )
 
         self.train_loader = DataLoader(
@@ -170,7 +176,7 @@ class classifier_train:
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                torch.save(self.model.state_dict(), self.config.model_save_path)
+                torch.save(self.model.state_dict(), self.config.model_save)
                 patience_counter = 0
             else:
                 patience_counter += 1
@@ -192,8 +198,9 @@ class classifier_train:
 
 
 class regressor_train:
-    def __init__(self, config):
+    def __init__(self, config, input_path):
         self.config = config
+        self.input_path = input_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
 
@@ -201,14 +208,14 @@ class regressor_train:
         set_seed(self.config.seed)
 
         if self.config.encoder == 'MEE':
-            config_yaml = yaml.full_load(open(self.config.mee_config_path, 'r'))
-            self.model = MEE(config_yaml, self.config.num_controls)
+            config_yaml = yaml.full_load(open("../conf/MEE_configs.yaml", 'r'))
+            self.model = MEE(config_yaml, self.config.n_params)
         elif self.config.encoder == 'TFE':
             self.model = TFE(
                 samplerate=self.config.sample_rate,
-                f_dim=self.config.f_dim,
-                t_dim=self.config.t_dim,
-                label_dim=self.config.num_controls
+                f_dim=self.config.TFE.f_dim,
+                t_dim=self.config.TFE.t_dim,
+                label_dim=self.config.n_params
             )
         else:
             raise ValueError("Invalid encoder name. Use 'MEE' or 'TFE'")
@@ -222,9 +229,9 @@ class regressor_train:
         if self.config.loss_type.lower() == 'params':
             self.criterion = torch.nn.MSELoss()
         elif self.config.loss_type.lower() == 'mel':
-            self.fft_sizes = self.config.mel_loss.get('fft_sizes', [256, 1024, 4096])
-            self.hop_sizes = self.config.mel_loss.get('hop_sizes', [64, 256, 1024])
-            self.win_lengths = self.config.mel_loss.get('win_lengths', [256, 1024, 4096])
+            self.fft_sizes = self.config.mel_loss.fft_sizes
+            self.hop_sizes = self.config.mel_loss.hop_sizes
+            self.win_lengths = self.config.mel_loss.win_lengths
 
             self.MRSTFT = auraloss.freq.MultiResolutionSTFTLoss(
                 fft_sizes=self.fft_sizes,
@@ -235,11 +242,11 @@ class regressor_train:
             ).to(self.device)
 
             self.Mel = auraloss.freq.MelSTFTLoss(
-                sample_rate=self.config.sample_rate,
-                fft_size=self.config.mel_loss.get('fft_size', 2048),
-                hop_size=self.config.mel_loss.get('hop_size', 512),
-                win_length=self.config.mel_loss.get('win_length', 2048),
-                n_mels=self.config.mel_loss.get('n_mels', 128),
+                sample_rate=22050,
+                fft_size=2048,
+                hop_size=512,
+                win_length=2048,
+                n_mels=128,
                 device=self.device,
                 w_sc=0
             ).to(self.device)
@@ -249,7 +256,7 @@ class regressor_train:
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.config.lr)
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
-            self.optimizer, gamma=self.config.gamma
+            self.optimizer, gamma=self.config.lr_gamma
         )
 
         self.train_losses = []
@@ -268,13 +275,14 @@ class regressor_train:
 
     def _create_dataloaders(self):
         compressors = pickle.load(open(self.config.compressors, 'rb'))
-
+        train_folder_path = os.path.join(self.input_path, "train")
+        test_folder_path = os.path.join(self.input_path, "test")
         self.train_dataset = get_dataset(
-            self.config.train_folder,
+            train_folder_path,
             compressors
         )
         self.test_dataset = get_dataset(
-            self.config.test_folder,
+            test_folder_path,
             compressors
         )
 
@@ -300,11 +308,7 @@ class regressor_train:
 
             self.optimizer.zero_grad()
             q_hat = self.model(inputs)
-
-            if self.config.loss_type.lower() == 'params':
-                loss = self.criterion(norm_q, q_hat)
-            else:
-                loss = self.criterion(q_hat, norm_q, target, inputs, self.config.AFX)
+            loss = self.criterion(norm_q, q_hat)
 
             loss.backward()
             self.optimizer.step()
@@ -325,12 +329,7 @@ class regressor_train:
                 norm_q = norm_q.to(self.device)
 
                 q_hat = self.model(inputs)
-
-                if self.config.loss_type.lower() == 'params':
-                    loss = self.criterion(norm_q, q_hat)
-                else:
-                    loss = self.criterion(q_hat, norm_q, target, inputs, self.config.AFX)
-
+                loss = self.criterion(norm_q, q_hat)
                 val_loss += loss.item()
 
         avg_loss = val_loss / len(self.test_loader)
@@ -363,7 +362,7 @@ class regressor_train:
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                torch.save(self.model.state_dict(), self.config.model_save_path)
+                torch.save(self.model.state_dict(), self.config.model_save)
                 patience_counter = 0
             else:
                 patience_counter += 1

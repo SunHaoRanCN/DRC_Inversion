@@ -24,34 +24,38 @@ from utiles.utile import set_seed
 
 
 class classifier_eval:
-    def __init__(self, config):
+    def __init__(self, config, input_folder, output_folder):
         self.config = config
+        self.input_path = input_folder
+        self.output_folder = output_folder
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
 
     def _setup(self):
         set_seed(self.config.seed)
-        os.makedirs(self.config.output_folder, exist_ok=True)
+        os.makedirs(self.output_folder, exist_ok=True)
 
         self.model = ASTModel(
-            label_dim=self.config.num_classes,
-            input_tdim=self.config.target_shape[1],
-            input_fdim=self.config.target_shape[0],
-            imagenet_pretrain=self.config.imagenet_pretrain,
-            audioset_pretrain=self.config.audioset_pretrain
+            label_dim=self.config.n_class,
+            input_tdim=self.config.target_shape.t_dim,
+            input_fdim=self.config.target_shape.f_dim,
+            imagenet_pretrain=self.config.AST.imagenet_pretrain,
+            audioset_pretrain=self.config.AST.audioset_pretrain
         )
 
         if torch.cuda.device_count() > 1:
             self.model = nn.DataParallel(self.model)
         self.model = self.model.to(self.device)
-        self.model.load_state_dict(torch.load(self.config.pretrained_model))
+        self.model.load_state_dict(torch.load(self.config.model_save))
         self.model.eval()
 
         self.compressors = pickle.load(open(self.config.compressors, 'rb'))
 
+        eval_path = os.path.join(self.input_path, "eval")
         self.eval_dataset = get_2D_dataset(
-            self.config.eval_folder,
-            target_shape=self.config.target_shape
+            eval_path,
+            t_dim=self.config.target_shape.t_dim,
+            f_dim=self.config.target_shape.f_dim,
         )
         self.eval_loader = DataLoader(
             self.eval_dataset,
@@ -98,7 +102,7 @@ class classifier_eval:
                             parameters['param7']
                         )
 
-                    output_path = os.path.join(self.config.output_folder, audio_name)
+                    output_path = os.path.join(self.output_folder, audio_name)
                     sf.write(output_path, estimated_signal, self.config.sample_rate)
 
                 torch.cuda.empty_cache()
@@ -106,11 +110,13 @@ class classifier_eval:
         evaluation_time = time.time() - start_time
         print(f"Evaluation completed in {evaluation_time:.2f} seconds")
         print(f"Processed {count} samples in total")
-        print(f"Output saved to: {self.config.output_folder}")
+        print(f"Output saved to: {self.output_folder}")
 
 class regressor_eval:
-    def __init__(self, config):
+    def __init__(self, config, input_folder, output_folder):
         self.config = config
+        self.input_folder = input_folder
+        self.output_folder = output_folder
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
 
@@ -118,14 +124,14 @@ class regressor_eval:
         set_seed(self.config.seed)
 
         if self.config.encoder == 'MEE':
-            config_yaml = yaml.full_load(open(self.config.mee_config_path, 'r'))
-            self.model = MEE(config_yaml, self.config.num_controls)
+            config_yaml = yaml.full_load(open("../conf/MEE_configs.yaml", 'r'))
+            self.model = MEE(config_yaml, self.config.n_params)
         elif self.config.encoder == 'TFE':
             self.model = TFE(
                 samplerate=self.config.sample_rate,
-                f_dim=self.config.f_dim,
-                t_dim=self.config.t_dim,
-                label_dim=self.config.num_controls
+                f_dim=self.config.TFE.f_dim,
+                t_dim=self.config.TFE.t_dim,
+                label_dim=self.config.n_params
             )
         else:
             raise ValueError("Invalid encoder name. Use 'MEE' or 'TFE'")
@@ -133,17 +139,17 @@ class regressor_eval:
         if torch.cuda.device_count() > 1:
             self.model = nn.DataParallel(self.model)
         self.model = self.model.to(self.device)
-        self.model.load_state_dict(torch.load(self.config.model_path))
+        self.model.load_state_dict(torch.load(self.config.model_save))
         self.model.eval()
 
-        self.control_ranges = np.array(self.config.control_ranges)
+        self.control_ranges = np.array(np.array(self.config.control_ranges))
 
         if self.config.loss_type.lower() == 'params':
             self.criterion = torch.nn.MSELoss()
         elif self.config.loss_type.lower() == 'mel':
-            self.fft_sizes = self.config.mel_loss.get('fft_sizes', [256, 1024, 4096])
-            self.hop_sizes = self.config.mel_loss.get('hop_sizes', [64, 256, 1024])
-            self.win_lengths = self.config.mel_loss.get('win_lengths', [256, 1024, 4096])
+            self.fft_sizes = self.config.mel_loss.fft_sizes
+            self.hop_sizes = self.config.mel_loss.hop_sizes
+            self.win_lengths = self.config.mel_loss.win_lengths
 
             self.MRSTFT = auraloss.freq.MultiResolutionSTFTLoss(
                 fft_sizes=self.fft_sizes,
@@ -155,10 +161,10 @@ class regressor_eval:
 
             self.Mel = auraloss.freq.MelSTFTLoss(
                 sample_rate=self.config.sample_rate,
-                fft_size=self.config.mel_loss.get('fft_size', 2048),
-                hop_size=self.config.mel_loss.get('hop_size', 512),
-                win_length=self.config.mel_loss.get('win_length', 2048),
-                n_mels=self.config.mel_loss.get('n_mels', 128),
+                fft_size=2048,
+                hop_size=512,
+                win_length=2048,
+                n_mels=128,
                 device=self.device,
                 w_sc=0
             ).to(self.device)
@@ -168,8 +174,9 @@ class regressor_eval:
 
         compressors = pickle.load(open(self.config.compressors, 'rb'))
 
+        eval_folder = os.path.join(self.input_folder, "eval")
         self.eval_dataset = get_dataset(
-            self.config.eval_folder,
+            eval_folder,
             compressors
         )
         self.eval_loader = DataLoader(
@@ -204,7 +211,7 @@ class regressor_eval:
         }
 
         with torch.no_grad():
-            for batch_idx, (inputs, targets, labels, real_q, norm_q, names) in enumerate(iter(self.config.eval_loader)):
+            for batch_idx, (inputs, targets, labels, real_q, norm_q, names) in enumerate(iter(self.eval_loader)):
                 inputs, norm_q = inputs.to(torch.float32), norm_q.to(torch.float32)
                 inputs, norm_q = inputs.unsqueeze(1).to(self.device), norm_q.to(self.device)
                 q_hat = self.model(inputs)
@@ -241,9 +248,9 @@ class regressor_eval:
                                                         parameters[5],
                                                         2)
 
-                    sf.write(self.config.output_folder + "/" + audio_name, estimated_signal, self.config.sample_rate)
+                    sf.write(self.output_folder + "/" + audio_name, estimated_signal, self.config.sample_rate)
 
                     torch.cuda.empty_cache()
 
         df = pd.DataFrame(q_tab)
-        df.to_excel("/results/parameters.xlsx", index=False)
+        df.to_excel("../results/parameters.xlsx", index=False)

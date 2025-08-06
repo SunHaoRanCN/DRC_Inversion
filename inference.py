@@ -65,7 +65,7 @@ def main():
 
     if args.task == 'classification':
         if args.mission == 'train':
-            classifier_train(configs)
+            classifier_train(configs, args.input_path)
         elif args.mission == "evaluation":
             classifier_eval(configs)
         else:

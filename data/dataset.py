@@ -12,6 +12,7 @@ import random
 import pickle
 import shutil
 import librosa
+from omegaconf import OmegaConf
 
 
 def add_noise(audio_signal, snr=20):
@@ -362,26 +363,28 @@ def generate_multi_dataset(
     return train_class_count, test_class_count
 
 
-source_folder = "/Volumes/hsun_exFAT/Datasets/MedleyDB/raw_musics_30"
-root_path = "/Volumes/hsun_exFAT/Datasets/MedleyDB/30profiles"
+if __name__ == "__main__":
+    configs = OmegaConf.load("../conf/data.yaml")
+    source_folder = configs.source_path
+    root_path = configs.root_path
 
-with open('/Users/sunhaoran/Projects/TASLP/30profiles.pkl', 'rb') as file:
-    compressors = pickle.load(file)
-duration = 5
-SNR = np.arange(20, 70, 5)
-# SNR = np.array([20])
-for snr in SNR:
-    root_folder = os.path.join(root_path, str(snr) + "dB")
-    os.makedirs(root_folder, exist_ok=True)
-    print(r"Generating dataset with SNR {snr} dB.")
-    train_class_count, test_class_count = generate_multi_dataset(source_folder,
-                                                                 root_folder,
-                                                                 compressors,
-                                                                 target_number=int(35867*2),
-                                                                 duration=5,
-                                                                 data_augmentation=True,
-                                                                 snr=snr,
-                                                                 split_ratio=0.8
-                                                                 )
-    print_class_distribution(train_class_count, "train folder")
-    print_class_distribution(test_class_count, "test folder")
+    with open(configs.compressors, 'rb') as file:
+        compressors = pickle.load(file)
+
+    duration = configs.duration
+    SNR = np.linspace(configs.snr_min, configs.snr_max+1, configs.step)
+    for snr in SNR:
+        root_folder = os.path.join(root_path, str(snr) + "dB")
+        os.makedirs(root_folder, exist_ok=True)
+        print(r"Generating dataset with SNR {snr} dB.")
+        train_class_count, test_class_count = generate_multi_dataset(source_folder,
+                                                                     root_folder,
+                                                                     compressors,
+                                                                     target_number=int(35867*2),
+                                                                     duration=duration,
+                                                                     data_augmentation=True,
+                                                                     snr=snr,
+                                                                     split_ratio=0.8
+                                                                     )
+        print_class_distribution(train_class_count, "train folder")
+        print_class_distribution(test_class_count, "test folder")
