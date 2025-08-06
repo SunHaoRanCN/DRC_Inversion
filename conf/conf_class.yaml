@@ -27,3 +27,10 @@ AST:
 compressors: '30profiles.pt'
 
 model_save: "pretrained_model/pretrained_AST.pt"
+
+if_augmentation: False
+Augmentation:
+  snr_max: 65
+  snr_min: 20
+  step: 5
+  epoch: 20

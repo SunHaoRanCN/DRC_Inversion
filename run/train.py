@@ -33,9 +33,10 @@ def normSignal_np(x):
     return x
 
 class classifier_train:
-    def __init__(self, config, input_path):
+    def __init__(self, config, input_folder):
         self.config = config
-        self.input_path = input_path
+        self.input_folder = input_folder
+        self.augmentation = self.config.if_augmentation
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
 
@@ -73,13 +74,20 @@ class classifier_train:
         self.train_accuracies = []
         self.val_accuracies = []
 
-    def _create_dataloaders(self):
-        train_folder_path = os.path.join(self.input_path, "train")
-        test_folder_path = os.path.join(self.input_path, "test")
+    def _create_dataloaders(self, epoch):
+
+        db_levels = range(self.config.Augmentation.snr_min, self.config.Augmentation.snr_max + 1, -self.config.Augmentation.step)
+        epochs_per_level = self.config.Augmentation.epoch
+        db_level_index = (epoch - 1) // epochs_per_level
+        db_level = db_levels[db_level_index]
+
+        train_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "train")
+        test_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "test")
+
         train_dataset = get_2D_dataset(
             train_folder_path,
-            t_dim = self.config.target_shape.t_dim,
-            f_dim = self.config.target_shape.f_dim
+            t_dim=self.config.target_shape.t_dim,
+            f_dim=self.config.target_shape.f_dim
         )
         test_dataset = get_2D_dataset(
             test_folder_path,
@@ -148,15 +156,14 @@ class classifier_train:
         return avg_loss, accuracy
 
     def train(self):
-        self._create_dataloaders()
-
         best_val_loss = float('inf')
         patience_counter = 0
 
-        print(f"Starting training for {self.config.n_epochs} epochs")
+        print(f"Starting training for {self.config.max_epoch} epochs")
         start_time = time.time()
 
-        for epoch in range(self.config.n_epochs):
+        for epoch in range(self.config.max_epochs):
+            self._create_dataloaders(epoch)
             lr = self.optimizer.param_groups[0]['lr']
 
             train_loss, train_acc = self.train_epoch()
@@ -169,7 +176,7 @@ class classifier_train:
 
             self.scheduler.step()
 
-            print(f"Epoch {epoch + 1:03d}/{self.config.n_epochs} | "
+            print(f"Epoch {epoch + 1:03d}/{self.config.max_epoch} | "
                   f"LR: {lr:.7f} | "
                   f"Train Loss: {train_loss:.4f} Acc: {train_acc:.4f} | "
                   f"Val Loss: {val_loss:.4f} Acc: {val_acc:.4f}")
@@ -200,7 +207,7 @@ class classifier_train:
 class regressor_train:
     def __init__(self, config, input_path):
         self.config = config
-        self.input_path = input_path
+        self.input_folder = input_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
 
@@ -273,10 +280,19 @@ class regressor_train:
         pp = (M - m) * p + m
         return pp
 
-    def _create_dataloaders(self):
+    def _create_dataloaders(self, epoch):
+
+        db_levels = range(self.config.Augmentation.snr_min, self.config.Augmentation.snr_max + 1,
+                          -self.config.Augmentation.step)
+        epochs_per_level = self.config.Augmentation.epoch
+        db_level_index = (epoch - 1) // epochs_per_level
+        db_level = db_levels[db_level_index]
+
+        train_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "train")
+        test_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "test")
+
         compressors = pickle.load(open(self.config.compressors, 'rb'))
-        train_folder_path = os.path.join(self.input_path, "train")
-        test_folder_path = os.path.join(self.input_path, "test")
+
         self.train_dataset = get_dataset(
             train_folder_path,
             compressors
@@ -336,15 +352,15 @@ class regressor_train:
         return avg_loss
 
     def train(self):
-        self._create_dataloaders()
-
         best_val_loss = float('inf')
         patience_counter = 0
 
-        print(f"Starting training for {self.config.n_epochs} epochs")
+        print(f"Starting training for {self.config.max_epoch} epochs")
         start_time = time.time()
 
-        for epoch in range(self.config.n_epochs):
+        for epoch in range(self.config.max_epoch):
+            self._create_dataloaders(epoch)
+
             lr = self.optimizer.param_groups[0]['lr']
 
             train_loss = self.train_epoch()
@@ -355,7 +371,7 @@ class regressor_train:
 
             self.scheduler.step()
 
-            print(f"Epoch {epoch + 1:03d}/{self.config.n_epochs} | "
+            print(f"Epoch {epoch + 1:03d}/{self.config.max_epoch} | "
                   f"LR: {lr:.7f} | "
                   f"Train Loss: {train_loss:.4f} | "
                   f"Val Loss: {val_loss:.4f}")
@@ -367,7 +383,7 @@ class regressor_train:
             else:
                 patience_counter += 1
 
-            if (epoch >= self.config.min_epochs and
+            if (epoch >= self.config.min_epoch and
                     patience_counter >= self.config.patience and
                     self.config.early_stop):
                 print(f"Early stopping at epoch {epoch + 1}")
