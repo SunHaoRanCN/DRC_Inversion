@@ -32,6 +32,7 @@ def normSignal_np(x):
     x = x / np.sqrt(np.mean(x ** 2))
     return x
 
+
 class classifier_train:
     def __init__(self, config, input_folder):
         self.config = config
@@ -76,7 +77,8 @@ class classifier_train:
 
     def _create_dataloaders(self, epoch):
 
-        db_levels = range(self.config.Augmentation.snr_min, self.config.Augmentation.snr_max + 1, -self.config.Augmentation.step)
+        db_levels = range(self.config.Augmentation.snr_min, self.config.Augmentation.snr_max + 1,
+                          -self.config.Augmentation.step)
         epochs_per_level = self.config.Augmentation.epoch
         db_level_index = (epoch - 1) // epochs_per_level
         db_level = db_levels[db_level_index]
@@ -112,7 +114,7 @@ class classifier_train:
         correct_predictions = 0
         total_samples = 0
 
-        for real_signals, target_signals, inputs, labels, audio_name in self.train_loader:
+        for real_signals, target_signals, inputs, labels in self.train_loader:
             inputs = inputs.to(torch.float32)
             inputs, labels = inputs.to(self.device), labels.to(self.device)
 
@@ -139,7 +141,7 @@ class classifier_train:
         total_samples = 0
 
         with torch.no_grad():
-            for real_signals, target_signals, inputs, labels, audio_name in self.test_loader:
+            for real_signals, target_signals, inputs, labels in self.test_loader:
                 inputs = inputs.to(torch.float32)
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
 

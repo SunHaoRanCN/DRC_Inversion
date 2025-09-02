@@ -67,15 +67,15 @@ def main():
         if args.mission == 'train':
             classifier_train(configs, args.input_path)
         elif args.mission == "evaluation":
-            classifier_eval(configs)
+            classifier_eval(configs, args.input_path, args.out_path)
         else:
             ValueError("Only accept mission types of 'train' and 'evaluation'!")
 
     elif args.task == 'regression':
         if args.mission == 'train':
-            regressor_train(configs)
+            regressor_train(configs, args.input_path)
         elif args.mission == "evaluation":
-            regressor_eval(configs)
+            regressor_eval(configs, args.input_path, args.out_path)
         else:
             ValueError("Only accept mission types of 'train' and 'evaluation'!")
 
