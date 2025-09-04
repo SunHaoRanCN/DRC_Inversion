@@ -31,7 +31,9 @@ python inference.py -t [task (classification or regression)] -m evaluation -i [i
 
 ## Baseline Models
 [Demucs](https://github.com/facebookresearch/demucs/tree/v2)
+
 [HDemucs](https://github.com/mhrice/RemFX)
+
 [De-Limiter](https://github.com/jeonchangbin49/De-limiter?tab=readme-ov-file)
 
 ## License
