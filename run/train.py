@@ -114,7 +114,7 @@ class classifier_train:
         correct_predictions = 0
         total_samples = 0
 
-        for real_signals, target_signals, inputs, labels in self.train_loader:
+        for real_signals, target_signals, inputs, labels, names in self.train_loader:
             inputs = inputs.to(torch.float32)
             inputs, labels = inputs.to(self.device), labels.to(self.device)
 
@@ -141,7 +141,7 @@ class classifier_train:
         total_samples = 0
 
         with torch.no_grad():
-            for real_signals, target_signals, inputs, labels in self.test_loader:
+            for real_signals, target_signals, inputs, labels, names in self.test_loader:
                 inputs = inputs.to(torch.float32)
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
 

@@ -48,6 +48,8 @@ class get_2D_dataset(Dataset):
         # else:
         #     compressor_type = int(compressor_type)
 
+        audio_name = audio_path.split("/")[-1]
+
         modified_path = audio_path.replace('train', 'all').replace('test', 'all')
         base_name, extension = modified_path.rsplit('.', 1)
         parts = base_name.split('_')
@@ -70,7 +72,7 @@ class get_2D_dataset(Dataset):
         if self.transform:
             feature = self.transform(feature)
 
-        return audio, raw_audio, feature, compressor_type
+        return audio, raw_audio, feature, compressor_type, audio_name
 
 
 def norm_params(control_ranges, p):
@@ -105,6 +107,8 @@ class get_dataset(Dataset):
         parts = audio_path.split('_')
         compressor_type = parts[-1].split('.')[0]
 
+        audio_name = audio_path.split("/")[-1]
+
         modified_path = audio_path.replace('train', 'all').replace('test', 'all')
         base_name, extension = modified_path.rsplit('.', 1)
         parts = base_name.split('_')
@@ -120,4 +124,4 @@ class get_dataset(Dataset):
             real_p = np.array(real_p)
         norm_p = norm_params(self.control_ranges, real_p)
 
-        return audio, raw_audio, compressor_type, real_p, norm_p
+        return audio, raw_audio, compressor_type, real_p, norm_p, audio_name
