@@ -19,7 +19,7 @@ pip install -r requirements.txt
 ## Train
 To retrain the model, run:
 ```
-python inference.py -t [task (classification or regression] -m train -i [input path]
+python inference.py -t [task (classification or regression)] -m train -i [input path]
 ```
 
 ## Evaluation
