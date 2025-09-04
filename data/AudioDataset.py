@@ -31,7 +31,8 @@ class get_2D_dataset(Dataset):
     def __getitem__(self, idx):
         audio_path = self.audio_list[idx]
         audio, sr = sf.read(audio_path)
-        parts = audio_path.split('_')
+        audio_name = audio_path.split("/")[-1]
+        parts = audio_name.split('_')
         compressor_type = int(parts[-1].split('.')[0])
         # if compressor_type == 'O':
         #     compressor_type = 0
@@ -48,8 +49,6 @@ class get_2D_dataset(Dataset):
         # else:
         #     compressor_type = int(compressor_type)
 
-        audio_name = audio_path.split("/")[-1]
-
         modified_path = audio_path.replace('train', 'all').replace('test', 'all')
         base_name, extension = modified_path.rsplit('.', 1)
         parts = base_name.split('_')
@@ -65,7 +64,7 @@ class get_2D_dataset(Dataset):
         total_samples = 5 * sr
         n_fft = 2 * (self.target_shape[0] - 1)
         hop_length = (total_samples - n_fft) // (self.target_shape[1] - 1)
-        feature = librosa.stft(y=audio, n_fft=n_fft, hop_length=hop_length)
+        feature = librosa.stft(y=audio, n_fft=n_fft, hop_length=hop_length, center=False)
         feature = librosa.amplitude_to_db(np.abs(feature))
         feature = feature.T
 

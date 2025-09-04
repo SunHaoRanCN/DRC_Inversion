@@ -46,7 +46,8 @@ class classifier_eval:
         if torch.cuda.device_count() > 1:
             self.model = nn.DataParallel(self.model)
         self.model = self.model.to(self.device)
-        self.model.load_state_dict(torch.load(self.config.model_save))
+        state = torch.load(self.config.model_save, map_location=self.device, weights_only=True)
+        self.model.load_state_dict(state)
         self.model.eval()
 
         self.compressors = pickle.load(open(self.config.compressors, 'rb'))
@@ -68,7 +69,6 @@ class classifier_eval:
 
     def evaluate(self):
         start_time = time.time()
-        count = 0
 
         with torch.no_grad():
             for real_signals, target_signals, inputs, labels, audio_names in self.eval_loader:
@@ -81,7 +81,6 @@ class classifier_eval:
 
                 for i in range(target_signals.size(0)):
                     target_signal = target_signals[i]
-                    real_signal = real_signals[i]
                     label = predicted_labels[i]
                     audio_name = audio_names[i]
 
@@ -104,13 +103,12 @@ class classifier_eval:
 
                     output_path = os.path.join(self.output_folder, audio_name)
                     sf.write(output_path, estimated_signal, self.config.sample_rate)
-
-                torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
 
         evaluation_time = time.time() - start_time
         print(f"Evaluation completed in {evaluation_time:.2f} seconds")
-        print(f"Processed {count} samples in total")
         print(f"Output saved to: {self.output_folder}")
+
 
 class regressor_eval:
     def __init__(self, config, input_folder, output_folder):
@@ -139,45 +137,19 @@ class regressor_eval:
         if torch.cuda.device_count() > 1:
             self.model = nn.DataParallel(self.model)
         self.model = self.model.to(self.device)
-        self.model.load_state_dict(torch.load(self.config.model_save))
+        state = torch.load(self.config.model_save, map_location=self.device, weights_only=True)
+        self.model.load_state_dict(state)
         self.model.eval()
 
-        self.control_ranges = np.array(np.array(self.config.control_ranges))
-
-        if self.config.loss_type.lower() == 'params':
-            self.criterion = torch.nn.MSELoss()
-        elif self.config.loss_type.lower() == 'mel':
-            self.fft_sizes = self.config.mel_loss.fft_sizes
-            self.hop_sizes = self.config.mel_loss.hop_sizes
-            self.win_lengths = self.config.mel_loss.win_lengths
-
-            self.MRSTFT = auraloss.freq.MultiResolutionSTFTLoss(
-                fft_sizes=self.fft_sizes,
-                hop_sizes=self.hop_sizes,
-                win_lengths=self.win_lengths,
-                w_sc=1,
-                device=self.device
-            ).to(self.device)
-
-            self.Mel = auraloss.freq.MelSTFTLoss(
-                sample_rate=self.config.sample_rate,
-                fft_size=2048,
-                hop_size=512,
-                win_length=2048,
-                n_mels=128,
-                device=self.device,
-                w_sc=0
-            ).to(self.device)
-            self.criterion = self._mel_loss
-        else:
-            raise ValueError("Invalid loss type. Use 'params' or 'mel'")
+        self.control_ranges = np.array(self.config.control_ranges)
 
         compressors = pickle.load(open(self.config.compressors, 'rb'))
 
         eval_folder = os.path.join(self.input_folder, "eval")
         self.eval_dataset = get_dataset(
             eval_folder,
-            compressors
+            compressors,
+            self.control_ranges
         )
         self.eval_loader = DataLoader(
             self.eval_dataset,
@@ -196,7 +168,7 @@ class regressor_eval:
         pp = (M - m) * p + m
         return pp
 
-    def evaluation(self):
+    def evaluate(self):
         torch.cuda.synchronize()
 
         estimated_p = []
@@ -215,8 +187,6 @@ class regressor_eval:
                 inputs, norm_q = inputs.to(torch.float32), norm_q.to(torch.float32)
                 inputs, norm_q = inputs.unsqueeze(1).to(self.device), norm_q.to(self.device)
                 q_hat = self.model(inputs)
-                estimated_p.append(q_hat)
-                real_labels.append(labels)
 
                 for i in range(inputs.size(0)):
                     y = inputs[i]
@@ -232,7 +202,7 @@ class regressor_eval:
                     q_tab['estimated'].append(self.find_real_params(theta.cpu().numpy()))
                     q_tab['q'].append(theta.cpu().numpy())
 
-                    if real_label == 'O':
+                    if int(real_label) == 0:
                         estimated_signal = x_real
                     else:
                         y = y.squeeze().cpu().numpy()
@@ -250,7 +220,7 @@ class regressor_eval:
 
                     sf.write(self.output_folder + "/" + audio_name, estimated_signal, self.config.sample_rate)
 
-                    torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
 
         df = pd.DataFrame(q_tab)
         df.to_excel("../results/parameters.xlsx", index=False)

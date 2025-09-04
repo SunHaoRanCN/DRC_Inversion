@@ -45,18 +45,12 @@ def main():
         default=12345,
         help='Random Seed',
     )
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="conf/config.yaml",
-        help='configuration',
-    )
     args = parser.parse_args()
 
     if args.task == 'classification':
         cfg_path = 'conf/class.yaml'
-    elif args.task == 'restoration':
-        cfg_path = 'configs/reg.yaml'
+    elif args.task == 'regression':
+        cfg_path = 'conf/reg.yaml'
     else:
         raise ValueError("Only accept task types of 'classification' and 'regression'!")
 
@@ -67,17 +61,19 @@ def main():
         if args.mission == 'train':
             classifier_train(configs, args.input_path)
         elif args.mission == "evaluation":
-            classifier_eval(configs, args.input_path, args.out_path)
+            ce = classifier_eval(configs, args.input_path, args.out_path)
+            ce.evaluate()
         else:
-            ValueError("Only accept mission types of 'train' and 'evaluation'!")
+            raise ValueError("Only accept mission types of 'train' and 'evaluation'!")
 
     elif args.task == 'regression':
         if args.mission == 'train':
             regressor_train(configs, args.input_path)
         elif args.mission == "evaluation":
-            regressor_eval(configs, args.input_path, args.out_path)
+            re = regressor_eval(configs, args.input_path, args.out_path)
+            re.evaluate()
         else:
-            ValueError("Only accept mission types of 'train' and 'evaluation'!")
+            raise ValueError("Only accept mission types of 'train' and 'evaluation'!")
 
     else:
         raise ValueError("Only accept task types of 'classification' and 'regression'!")

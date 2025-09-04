@@ -58,12 +58,6 @@ class classifier_train:
 
         self.compressors = pickle.load(open(self.config.compressors, 'rb'))
 
-        self.compressors_torch = {
-            key: {param: torch.tensor(value).to(self.device)
-                  for param, value in params.items()}
-            for key, params in self.compressors.items()
-        }
-
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.config.lr)
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
@@ -77,10 +71,15 @@ class classifier_train:
 
     def _create_dataloaders(self, epoch):
 
-        db_levels = range(self.config.Augmentation.snr_min, self.config.Augmentation.snr_max + 1,
-                          -self.config.Augmentation.step)
+        snr_min = self.config.Augmentation.snr_min
+        snr_max = self.config.Augmentation.snr_max
+        step = self.config.Augmentation.step
+        db_levels = list(range(snr_max, snr_min - 1, -step))
+
         epochs_per_level = self.config.Augmentation.epoch
-        db_level_index = (epoch - 1) // epochs_per_level
+        db_level_index = epoch // epochs_per_level
+        if db_level_index >= len(db_levels):
+            db_level_index = len(db_levels) - 1
         db_level = db_levels[db_level_index]
 
         train_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "train")
@@ -164,7 +163,7 @@ class classifier_train:
         print(f"Starting training for {self.config.max_epoch} epochs")
         start_time = time.time()
 
-        for epoch in range(self.config.max_epochs):
+        for epoch in range(self.config.max_epoch):
             self._create_dataloaders(epoch)
             lr = self.optimizer.param_groups[0]['lr']
 
@@ -198,7 +197,7 @@ class classifier_train:
         hours = training_time / 3600
         print(f"Training completed in {hours:.2f} hours")
 
-    def prediction_to_label(predictions):
+    def prediction_to_label(self, predictions):
         p = []
         for pre_label in predictions:
             l = str(pre_label.cpu().numpy())
@@ -284,10 +283,15 @@ class regressor_train:
 
     def _create_dataloaders(self, epoch):
 
-        db_levels = range(self.config.Augmentation.snr_min, self.config.Augmentation.snr_max + 1,
-                          -self.config.Augmentation.step)
+        snr_min = self.config.Augmentation.snr_min
+        snr_max = self.config.Augmentation.snr_max
+        step = self.config.Augmentation.step
+        db_levels = list(range(snr_max, snr_min - 1, -step))
+
         epochs_per_level = self.config.Augmentation.epoch
-        db_level_index = (epoch - 1) // epochs_per_level
+        db_level_index = epoch // epochs_per_level
+        if db_level_index >= len(db_levels):
+            db_level_index = len(db_levels) - 1
         db_level = db_levels[db_level_index]
 
         train_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "train")
@@ -297,11 +301,13 @@ class regressor_train:
 
         self.train_dataset = get_dataset(
             train_folder_path,
-            compressors
+            compressors,
+            self.control_ranges
         )
         self.test_dataset = get_dataset(
             test_folder_path,
-            compressors
+            compressors,
+            self.control_ranges
         )
 
         self.train_loader = DataLoader(
