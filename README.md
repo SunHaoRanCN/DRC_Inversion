@@ -1,5 +1,5 @@
 # Audio Dynamic Range Compression (DRC) inversion
-Official repository of the paper: Neural-Enhanced Dynamic Range Compression Inversion: A Hybrid Approach for Resoration Audio Dynamics
+Official repository of the paper: Neural-Enhanced Dynamic Range Compression Inversion: A Hybrid Approach for Restoring Audio Dynamics
 
 ## Authors
 - **Haoran Sun** <haoran.sun@etu-upsaclay.fr>
@@ -10,7 +10,7 @@ Official repository of the paper: Neural-Enhanced Dynamic Range Compression Inve
 Laboratoire IBISC (EA 4526), Univ. Evry Paris-Saclay, Évry-Courcouronnes, France
 
 ## Setup
-This repository requires Python 3.10+ and Pytorch 1.10+. Other packages are listed in 'requirements.txt'.
+This repository requires Python 3.10+ and PyTorch 1.10+. Other packages are listed in 'requirements.txt'.
 To install the requirements in your environment:
 ```
 pip install -r requirements.txt
@@ -26,7 +26,7 @@ python inference.py -t [task (classification or regression] -m train -i [input p
 Download the pretrained AST and MEE models, and the test datasets (large): [GoogleDrive](https://drive.google.com/drive/folders/1LwsGQVpnZOczGa8e-NY45pMHWGjAP6aS?usp=sharing).
 To evaluate the pretrained model, run:
 ```
-python inference.py -t [task (classification or regression)] -m eval -i [input path] -o [output path]
+python inference.py -t [task (classification or regression)] -m evaluation -i [input path] -o [output path]
 ```
 
 ## License
