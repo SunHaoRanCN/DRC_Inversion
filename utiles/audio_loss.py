@@ -196,34 +196,9 @@ class MelSTFTLoss:
 
 
 def loss_SISDR(estimate, reference):
-    eps = np.finfo(float).eps
-    alpha = np.dot(estimate.T, reference) / (np.dot(estimate.T, estimate) + eps)
-
-    molecular = ((alpha * reference) ** 2).sum()
-    denominator = ((alpha * reference - estimate) ** 2).sum()
-
-    return 10 * np.log10((molecular) / (denominator+eps))
-
-
-### Perceptual Evaluation of Speech Quality (PESQ)
-def loss_PESQ(x, x_hat, fs=16000, band='wb'):
-    """
-    ref: numpy 1D array, reference audio signal
-        deg: numpy 1D array, degraded audio signal
-        fs:  integer, sampling rate
-        mode: 'wb' (wide-band) or 'nb' (narrow-band)
-        on_error: error-handling behavior, it could be PesqError.RETURN_VALUES or PesqError.RAISE_EXCEPTION by default
-    Returns:
-        pesq_score: float, P.862.2 Prediction (MOS-LQO)
-    """
-    return pesq(fs, x, x_hat, band)
-
-
-### Perceptual Evaluation of Audio Quality (PEAQ)
-def loss_PEAQ(x, x_hat, fs):
-    write('audio_ref.wav', fs, x)
-    write('audio_test.wav', fs, x_hat)
-    score = compute_audio_quality('PEAQ', 'audio_ref.wav', 'audio_test.wav')
-    os.remove('audio_ref.wav')
-    os.remove('audio_test.wav')
-    return score
+    eps = 1e-8
+    alpha = np.dot(reference, estimate) / (np.dot(reference, reference) + eps)
+    s_target = alpha * reference
+    e_noise = estimate - s_target
+    ratio = (np.sum(s_target ** 2) + eps) / (np.sum(e_noise ** 2) + eps)
+    return 10 * np.log10(ratio)

@@ -34,10 +34,10 @@ def normSignal_np(x):
 
 
 class classifier_train:
-    def __init__(self, config, input_folder):
+    def __init__(self, config, input_folder, if_augmentation=False):
         self.config = config
         self.input_folder = input_folder
-        self.augmentation = self.config.if_augmentation
+        self.augmentation = if_augmentation
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
 
@@ -70,20 +70,24 @@ class classifier_train:
         self.val_accuracies = []
 
     def _create_dataloaders(self, epoch):
+        if self.augmentation:
+            snr_min = self.config.Augmentation.snr_min
+            snr_max = self.config.Augmentation.snr_max
+            step = self.config.Augmentation.step
+            db_levels = list(range(snr_max, snr_min - 1, -step))
 
-        snr_min = self.config.Augmentation.snr_min
-        snr_max = self.config.Augmentation.snr_max
-        step = self.config.Augmentation.step
-        db_levels = list(range(snr_max, snr_min - 1, -step))
+            epochs_per_level = self.config.Augmentation.epoch
+            db_level_index = epoch // epochs_per_level
+            if db_level_index >= len(db_levels):
+                db_level_index = len(db_levels) - 1
+            db_level = db_levels[db_level_index]
 
-        epochs_per_level = self.config.Augmentation.epoch
-        db_level_index = epoch // epochs_per_level
-        if db_level_index >= len(db_levels):
-            db_level_index = len(db_levels) - 1
-        db_level = db_levels[db_level_index]
+            train_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "train")
+            test_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "test")
 
-        train_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "train")
-        test_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "test")
+        else:
+            train_folder_path = os.path.join(self.input_folder, "clean1/train")
+            test_folder_path = os.path.join(self.input_folder, "clean1/test")
 
         train_dataset = get_2D_dataset(
             train_folder_path,
@@ -206,9 +210,10 @@ class classifier_train:
 
 
 class regressor_train:
-    def __init__(self, config, input_path):
+    def __init__(self, config, input_path, if_augmentation=False):
         self.config = config
         self.input_folder = input_path
+        self.augmentation = if_augmentation
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._setup()
 
@@ -282,20 +287,24 @@ class regressor_train:
         return pp
 
     def _create_dataloaders(self, epoch):
+        if self.augmentation:
+            snr_min = self.config.Augmentation.snr_min
+            snr_max = self.config.Augmentation.snr_max
+            step = self.config.Augmentation.step
+            db_levels = list(range(snr_max, snr_min - 1, -step))
 
-        snr_min = self.config.Augmentation.snr_min
-        snr_max = self.config.Augmentation.snr_max
-        step = self.config.Augmentation.step
-        db_levels = list(range(snr_max, snr_min - 1, -step))
+            epochs_per_level = self.config.Augmentation.epoch
+            db_level_index = epoch // epochs_per_level
+            if db_level_index >= len(db_levels):
+                db_level_index = len(db_levels) - 1
+            db_level = db_levels[db_level_index]
 
-        epochs_per_level = self.config.Augmentation.epoch
-        db_level_index = epoch // epochs_per_level
-        if db_level_index >= len(db_levels):
-            db_level_index = len(db_levels) - 1
-        db_level = db_levels[db_level_index]
+            train_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "train")
+            test_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "test")
 
-        train_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "train")
-        test_folder_path = os.path.join(self.input_folder, f"{db_level}dB", "test")
+        else:
+            train_folder_path = os.path.join(self.input_folder, "clean/train")
+            test_folder_path = os.path.join(self.input_folder, "clean/test")
 
         compressors = pickle.load(open(self.config.compressors, 'rb'))
 

@@ -20,6 +20,7 @@ from models.ast_model import ASTModel
 from models.mee_model import MEE
 from models.tfe_model import TFE
 from models.DECOMP import decompressor
+from models.Expander import dexpander
 from utiles.utile import set_seed
 
 
@@ -49,8 +50,15 @@ class classifier_eval:
         state = torch.load(self.config.model_save, map_location=self.device, weights_only=True)
         self.model.load_state_dict(state)
         self.model.eval()
+        
+        if self.config.DRC == "compression":
+            self.profiles = pickle.load(open(self.config.profiles, 'rb'))
+        
+        elif self.config.DRC == "expansion":
+            self.profiles = pickle.load(open(self.config.profiles, 'rb'))
 
-        self.compressors = pickle.load(open(self.config.compressors, 'rb'))
+        else:
+            raise ValueError("Wrong DRC task! Should be 'compression' or 'expansion'.")
 
         eval_path = os.path.join(self.input_path, "eval")
         self.eval_dataset = get_2D_dataset(
@@ -88,18 +96,33 @@ class classifier_eval:
                         estimated_signal = target_signal.cpu().numpy()
                     else:
                         target_np = target_signal.cpu().numpy()
-                        parameters = self.compressors[label]
-                        estimated_signal = decompressor(
-                            target_np,
-                            self.config.sample_rate,
-                            parameters['param1'],
-                            parameters['param2'],
-                            parameters['param3'],
-                            parameters['param4'],
-                            parameters['param5'],
-                            parameters['param6'],
-                            parameters['param7']
-                        )
+                        parameters = self.profiles[label]
+
+                        if self.config.DRC == "compression":
+                            estimated_signal = decompressor(
+                                target_np,
+                                self.config.sample_rate,
+                                parameters['param1'],
+                                parameters['param2'],
+                                parameters['param3'],
+                                parameters['param4'],
+                                parameters['param5'],
+                                parameters['param6'],
+                                parameters['param7']
+                            )
+
+                        elif self.config.DRC == "expansion":
+                            estimated_signal = dexpander(
+                                target_np,
+                                self.config.sample_rate,
+                                parameters['param1'],
+                                parameters['param2'],
+                                parameters['param3'],
+                                parameters['param4'],
+                                parameters['param5'],
+                                parameters['param6'],
+                                parameters['param7']
+                            )
 
                     output_path = os.path.join(self.output_folder, audio_name)
                     sf.write(output_path, estimated_signal, self.config.sample_rate)
@@ -143,12 +166,19 @@ class regressor_eval:
 
         self.control_ranges = np.array(self.config.control_ranges)
 
-        compressors = pickle.load(open(self.config.compressors, 'rb'))
+        if self.config.DRC == "compression":
+            self.profiles = pickle.load(open(self.config.profiles, 'rb'))
+
+        elif self.config.DRC == "expansion":
+            self.profiles = pickle.load(open(self.config.profiles, 'rb'))
+
+        else:
+            raise ValueError("Wrong DRC task! Should be 'compression' or 'expansion'.")
 
         eval_folder = os.path.join(self.input_folder, "eval")
         self.eval_dataset = get_dataset(
             eval_folder,
-            compressors,
+            self.profiles,
             self.control_ranges
         )
         self.eval_loader = DataLoader(
@@ -208,15 +238,31 @@ class regressor_eval:
                         y = y.squeeze().cpu().numpy()
                         parameters = self.find_real_params(theta.cpu().numpy())
                         parameters = parameters.flatten()
-                        estimated_signal = decompressor(y,
-                                                        self.config.sample_rate,
-                                                        parameters[0],
-                                                        parameters[1],
-                                                        parameters[2],
-                                                        parameters[3],
-                                                        parameters[4],
-                                                        parameters[5],
-                                                        2)
+                        if self.config.DRC == "compression":
+                            estimated_signal = decompressor(
+                                y,
+                                self.config.sample_rate,
+                                parameters['param1'],
+                                parameters['param2'],
+                                parameters['param3'],
+                                parameters['param4'],
+                                parameters['param5'],
+                                parameters['param6'],
+                                2
+                            )
+
+                        elif self.config.DRC == "expansion":
+                            estimated_signal = dexpander(
+                                y,
+                                self.config.sample_rate,
+                                parameters['param1'],
+                                parameters['param2'],
+                                parameters['param3'],
+                                parameters['param4'],
+                                parameters['param5'],
+                                parameters['param6'],
+                                2
+                            )
 
                     sf.write(self.output_folder + "/" + audio_name, estimated_signal, self.config.sample_rate)
 

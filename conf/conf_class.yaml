@@ -1,8 +1,9 @@
-sample_rate: 16000
+sample_rate: 44100
+DRC: "compression"  # or "expansion"
 
 duration: 5
 
-n_class: 31
+n_class: 6
 
 target_shape:
   f_dim: 64
@@ -24,9 +25,9 @@ AST:
   imagenet_pretrain: True
   audioset_pretrain: False
 
-compressors: '30profiles.pt'
+profiles: '5profiles.pkl'
 
-model_save: "pretrained_model/pretrained_AST.pt"
+model_save: "../experiments/pretrained_AST_MedleyDB_small.pt"
 
 if_augmentation: False
 Augmentation:

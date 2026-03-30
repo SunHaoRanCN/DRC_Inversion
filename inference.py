@@ -1,4 +1,6 @@
 import argparse
+import os
+
 from omegaconf import OmegaConf
 from run.train import classifier_train, regressor_train
 from run.evaluation import classifier_eval, regressor_eval
@@ -24,7 +26,7 @@ def main():
         "-i",
         "--input_path",
         type=str,
-        help="Folder to the compressed signals"
+        help="Folder to the processed signals"
     )
     parser.add_argument(
         "-o",
@@ -48,9 +50,9 @@ def main():
     args = parser.parse_args()
 
     if args.task == 'classification':
-        cfg_path = 'conf/class.yaml'
+        cfg_path = 'conf/conf_class.yaml'
     elif args.task == 'regression':
-        cfg_path = 'conf/reg.yaml'
+        cfg_path = 'conf/conf_reg.yaml'
     else:
         raise ValueError("Only accept task types of 'classification' and 'regression'!")
 
@@ -58,8 +60,10 @@ def main():
     configs.seed = args.seed
 
     if args.task == 'classification':
+        os.makedirs("../experiments", exist_ok=True)
         if args.mission == 'train':
-            classifier_train(configs, args.input_path)
+            ct = classifier_train(configs, args.input_path, if_augmentation=configs.if_augmentation)
+            ct.train()
         elif args.mission == "evaluation":
             ce = classifier_eval(configs, args.input_path, args.out_path)
             ce.evaluate()
@@ -68,7 +72,8 @@ def main():
 
     elif args.task == 'regression':
         if args.mission == 'train':
-            regressor_train(configs, args.input_path)
+            rt = regressor_train(configs, args.input_path, if_augmentation=configs.if_augmentation)
+            rt.train()
         elif args.mission == "evaluation":
             re = regressor_eval(configs, args.input_path, args.out_path)
             re.evaluate()
