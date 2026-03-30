@@ -1,8 +1,8 @@
 # Audio Dynamic Range Compression (DRC) inversion
-Official repository of the paper: Neural-Enhanced Dynamic Range Compression Inversion: A Hybrid Approach for Restoring Audio Dynamics
+Official repository of the paper: Hybrid Model-Driven Inversion of Audio Dynamic Range Compression and Expansion
 
 ## Authors
-- **Haoran Sun** <haoran.sun@etu-upsaclay.fr>
+- **Haoran Sun** <haoran.sun@univ-evry.fr>
 - **Dominique Fourer** <dominique.fourer@univ-evry.fr>
 - **Hichem Maaref** <hichem.maaref@univ-evry.fr>
 
@@ -35,6 +35,11 @@ python inference.py -t [task (classification or regression)] -m evaluation -i [i
 [HDemucs](https://github.com/mhrice/RemFX)
 
 [De-Limiter](https://github.com/jeonchangbin49/De-limiter?tab=readme-ov-file)
+
+[CleanUMamba](https://github.com/lab-emi/CleanUMamba)
+
+## Evaluation
+To use the 2f-score for evaluation, please see: https://github.com/peladeaucome/PyEvalAudio
 
 ## License
 Distributed under the MIT License.
