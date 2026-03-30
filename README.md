@@ -19,7 +19,7 @@ pip install -r requirements.txt
 ## Train
 To retrain the model, run:
 ```
-python inference.py -t [task (classification or regression] -m train -i [input path]
+python inference.py -t [task (classification or regression)] -m train -i [input path]
 ```
 
 ## Evaluation
@@ -28,6 +28,13 @@ To evaluate the pretrained model, run:
 ```
 python inference.py -t [task (classification or regression)] -m evaluation -i [input path] -o [output path]
 ```
+
+## Baseline Models
+[Demucs](https://github.com/facebookresearch/demucs/tree/v2)
+
+[HDemucs](https://github.com/mhrice/RemFX)
+
+[De-Limiter](https://github.com/jeonchangbin49/De-limiter?tab=readme-ov-file)
 
 ## License
 Distributed under the MIT License.
